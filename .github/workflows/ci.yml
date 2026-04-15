@@ -1,55 +1,33 @@
-name: CI Pipeline
+name: CD Pipeline
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
-  frontend-ci:
+  docker-build-push:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: client
+    if: github.event_name == 'push'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          node-version: 20
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: npm install
+      - name: Build frontend image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/frontend-app:latest ./client
 
-      - name: Run tests
-        run: npm test -- --watchAll=false
+      - name: Build backend image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/backend-app:latest ./server
 
-      - name: Build app
-        run: npm run build
+      - name: Push frontend image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend-app:latest
 
-  backend-ci:
-    runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: server
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests
-        run: npm test
+      - name: Push backend image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend-app:latest
